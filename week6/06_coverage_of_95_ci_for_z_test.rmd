@@ -1,0 +1,94 @@
+---
+title: "z-test"
+author: "C. Durso"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggpubr)
+library(openintro)
+```
+
+## Visualize areas under the standard Normal density
+
+
+```{r}
+x<-seq(-3,3,0.001)
+dat<-data.frame(x=x,y=dnorm(seq(-3,3,0.001)))
+
+## setting our a-value
+## the positive value that has probability .975 that a standard normal random variable sampled will lie to the left of THIS value
+a<-qnorm(.975) 
+
+lhs<-data.frame(x=c(x[x<(-a)],-a,-3),y=c(dnorm(x[x<(-a)]),0,0))
+rhs<-data.frame(x=c(x[x>a],3,a),y=c(dnorm(x[x>a]),0,0))
+
+ggplot(rhs,aes(x=x,y=y))+geom_polygon(fill="gray")
+
+g<-ggplot(dat,aes(x=x,y=y))+geom_line()+labs(title="Standard Normal Distribution")
+g<-g+geom_polygon(data=lhs,aes(x=x,y=y),fill="gray",color="black")
+g<-g+geom_polygon(data=rhs,aes(x=x,y=y),fill="gray",color="black")
+g<-g+annotate("text",label=c("0.025","0.95","0.025"),x=c(-a-.2,0,a+.2),y=.02)
+g
+
+```
+
+## z test
+
+Used for (nearly) normal data with known variance, say from known measurement error. In the following, we simulate data with unknown mean m and known variance equal to 9.
+
+### Sample a Normal distribution
+
+Generate an unknown mean m. Make a sample from Normal(m,3), without peeking at m.
+
+```{r}
+set.seed(17)
+## generate a random value between 0 and 10 for a uniform dist then take the mean
+m<-mean(runif(15,0,10))
+n<-6
+sigma<-3
+x<-rnorm(n,m,sigma)
+mean(x)
+```
+
+### Is m=5?
+
+Do a z-test of the null hypothesis that m=5.
+
+```{r}
+## 5 is the hypothesized mean; x is the sample mean
+## calculate the z-score
+(z<-(mean(x)-5)/(sigma/sqrt(length(x))))
+## compute the 2-sided p-value
+(p<-2*pnorm(-abs(z))) ## the probability of getting a z-value as extreme or more extreme than .48 (less than -.48 or greater than .48)
+(p2<-2*(pnorm(-abs(mean(x)-5),0,sigma/sqrt(n))))
+```
+
+### (100-pct*100) conf. interval for m:
+
+```{r}
+pct<-.05
+a<-qnorm(1-(pct)/2)
+(interval<-c(mean(x)-sigma/sqrt(n)*a,mean(x)+sigma/sqrt(n)*a))
+m
+```
+
+### Demo of confidence interval concept:
+
+The (1-p)*100% confidence interval is calculated from the data using a method that has a probability of 1-p of including the true mean. Check this by drawing many samples, computing the confidence intervals, and finding the proportion of confidence intervals that include the true mean.
+
+```{r}
+set.seed(12345)
+samp<-matrix(rnorm(6*1000,m,sigma),ncol=6)
+conf_interval<-function(x,stdev,alpha){
+  n<-length(x)
+	return(c(mean(x)-stdev/sqrt(n)*alpha,mean(x)+stdev/sqrt(n)*alpha))
+}
+intervals<-apply(samp,1,conf_interval,stdev=sigma,alpha=a)
+mean(intervals[1,]<=m & intervals[2,]>=m)
+```
+

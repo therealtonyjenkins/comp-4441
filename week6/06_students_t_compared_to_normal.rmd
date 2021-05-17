@@ -1,0 +1,91 @@
+---
+title: "Student's t-test"
+author: "C. Durso"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggpubr)
+library(openintro)
+```
+
+## Student's t distributions
+
+```{r}
+x<-seq(-4,4,.01)
+normdat<-data.frame(x=x,y=dnorm(x),density="standard Normal")
+normdat<-rbind(normdat,data.frame(x=x,y=dt(x,df=2),density="Student, df=2") )
+normdat<-rbind(normdat,data.frame(x=x,y=dt(x,df=6),density="Student, df=6") )
+normdat<-rbind(normdat,data.frame(x=x,y=dt(x,df=12),density="Student, df=12") )
+normdat<-rbind(normdat,data.frame(x=x,y=dt(x,df=21),density="Student, df=21") )
+
+ggplot(normdat,aes(x=x,y=y,color=density))+geom_line()
+
+(cutoffs<-qt(.975,df=1:50))
+qplot(1:50,cutoffs)
+qnorm(.975)
+```
+
+## Do a t-test 
+
+Examine the densities of the Earth,as measured by Cavendish in 1798, against the Wikipedia density, 5.515 times the density of water. Test the hypothesis that Cavendish's measurements are consistent with current value, and give the 95% confidence interval based on the t-statistic http://lib.stat.cmu.edu/DASL/Datafiles/Cavendish.html , no longer available.
+
+
+```{r}
+den<-read.table("density.txt",header=TRUE)
+names(den)<-"measurement"
+dim(den)
+qplot(den$measurement,bins=30)
+qplot(den$measurement,geom="density")
+qplot(den$measurement,bins=30)
+qplot(1:nrow(den),den$measurement) # time series view
+ggplot(den,aes(x="Cavendish",y=measurement))+geom_boxplot() # Note outlier. Remove it. Why? 
+dat<-den$measurement[den$measurement!=min(den$measurement)]
+qplot(dat,bins=30)
+qplot(dat,geom="density")
+ggqqplot(den$measurement)
+ggqqplot(dat)
+```
+
+### Compare to plot for Normal variables
+
+```{r}
+
+set.seed(17)
+for (i in 1:4){
+samp<-rnorm(length(dat))
+print(ggqqplot(samp))
+}
+
+```
+
+### Do test
+
+```{r}
+m<-mean(dat)
+mu<-5.515
+s<-(sd(dat)/sqrt(length(dat)))
+n<-length(dat)
+t<-(m-mu)/s # has Student's t with n-1 df.
+2*pt(t,n-1) # p-value
+t.test(dat-mu)
+
+a<-qt(.975,n-1) # confidence interval
+lower<-m-a*s-mu
+upper<-m+a*s-mu
+cat("(",lower,", ",upper,")\n",sep="")
+
+```
+
+### Repeat with full density for sensitivity to outlier.
+
+```{r}
+dat<-den$measurement
+t.test(dat-mu)
+```
+
+

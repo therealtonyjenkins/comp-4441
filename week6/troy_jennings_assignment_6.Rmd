@@ -1,0 +1,233 @@
+---
+title: "Problem Set 6"
+author: "Troy Jennings"
+output:
+  pdf_document: default
+---
+
+```{r include=FALSE }
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggpubr)
+library("AER") ## for the data
+options(scipen = 999)
+```
+
+## 1. Location of the mean (Crash Fatality Data)
+
+The data set "USSeatBelts", data for the years 1983–1997 from 50 US States, plus the District of Columbia, for assessing traffic fatalities and seat belt usage, is in the "AER" package. Further details are available in the help for "USSeatBelts". These questions use the "state", "year", "fatalities", and "drinkage" variables. As detailed in the documentation, "fatalities" is the number of fatalities per million traffic miles and "drinkage" is a binary variable that is "yes" if the state had a minimum drinking age of 21 years and "no" otherwise.
+
+As can be seen from the tabulation below, by 1988, all the jurisdictions adopted a minimum drinking age of 21 years. The data can be reformatted as shown to have columns for each year's values of "fatalities" and "drinkage".
+
+```{r}
+data("USSeatBelts")
+#table(USSeatBelts$year, USSeatBelts$drinkage)
+dat <- USSeatBelts
+dat <- pivot_wider(dat, id_cols= state, names_from = year, values_from = c(fatalities, drinkage))
+```
+
+### 1a.
+
+Using the data frame "dat", perform a visual check of whether the value of "fatalities" in 1983 minus the value of "fatalities" in 1988 among the 29 jurisdictions that had a value of "no" for "drinkage" in 1983 could be considered Normally distributed. The function "ggqqplot" in the "ggpubr" package may help. 
+
+$\\[5em]\color{blue}\textbf{Question 1A Solution}\\[.5em]$
+
+```{r}
+## generate our dataframe with appropriate conditions
+cols <- c("fatalities_1983", "fatalities_1988", "drinkage_1983", "drinkage_1988")
+dat.2 <- select(dat, cols)
+dat.2 <- filter(dat.2, drinkage_1983 == 'no')
+measurement <- dat.2$fatalities_1988 - dat.2$fatalities_1983
+
+## plot qq plot
+g <- ggqqplot(data= measurement)
+g
+```
+
+### 1b.
+
+Using Student's t, test the hypothesis that the differences in "fatalities" between 1983 and 1988 for jurisdictions that went from "no" to "yes" in "drinkage" during this period are consistent with samples drawn from a Normal distribution with mean equal to 0. Please state your conclusions from the Student's t test including whether the test is a valid test of the location of the mean at 0.
+
+In 1983, a lower drinking age than 21 was used by the states not having a minimum drinking age of 21. This analysis could be one step in examining the association between raised drinking age and traffic fatalities per million miles.
+
+$\\[.5em]\color{blue}\textbf{Question 1B Solution}\\[.5em]$
+
+```{r}
+## obtain the mean of the data
+m <- mean(measurement)
+mu <- 0
+## obtain the standard deviation of the data
+n <- length(measurement)
+s <- (sd(measurement)/sqrt(n))
+
+## automatically calculate the t-test
+t.test(measurement - mu, conf.level= .99)
+```
+From the results of the t-test, we can see that the mean of the samples the differences in fatalities between 1983 and 1988 for jurisdictions that went from "no" to "yes" in drinking during the period are consistent with a Normal distribution, given the true mean for the data is very close to 0 (our hypothesized value).
+ 
+### 1c.
+
+What is the 99% confidence interval for the mean of these differences? Is this confidence interval consistent with a drop in the fatality rate between 1983 and 1988?
+
+$\\[.5em]\color{blue}\textbf{Question 1C Solution}\\[.5em]$
+
+```{r}
+# ## manually calculate the confidence interval
+a <- qt(.99, n-1)
+lower <- m-a*s-mu
+upper <- m+a*s-mu
+cat("(", lower, ", ", upper, ")\n", sep= "")
+```
+$\color{red}\text{TODO: Answer the confidence interval question}$
+
+### 1d.
+
+Can you conclude that the increased drinking age caused a reduction in the fatality rate? The calculation below may help you think about this question. 
+
+$\\[.5em]\color{blue}\textbf{Question 1D Solution}\\[.5em]$
+
+```{r}
+## get the differences in fatality rates between 1983 and 1988
+fatal.diff.yes <- dat$fatalities_1983[dat$drinkage_1983== "yes"] -
+           dat$fatalities_1988[dat$drinkage_1983== "yes"]
+## calculate the mean of the differences
+mean(fatal.diff.yes)
+```
+Given that the mean is positive and nearly zero, we can make the conclusion that, on average, there was a marginal decrease in the fatality rates through increasing the drinking age.
+
+## 2. Robustness of the z-test
+
+### 2.a
+
+Suppose an iid sample of size 50 is drawn from a population with a $Normal(\mu=2\sqrt{2},\sigma^2=4)$ distribution. Let the null hypothesis be that the sample is from a $Normal(\mu=2\sqrt{2}-1,\sigma^2=4)$ population. What is the probability that a two-sided z-test of performed on the sample will have a p-value that is less than or equal to 0.01? Please compute the result exactly using "pnorm", though you may check your answer using simulations. You may want to start by finding the set of values for the z-statistic that result in a p-value of less than or equal to 0.01. 
+
+$\\[.5em]\color{blue}\textbf{Question 2A Solution}\\[.5em]$
+
+```{r}
+## What is the probability that a 2-sided z-test performed on a sample will have
+## a p-value that is less than or equal to .01?
+
+## find the z
+(p <- 2*pnorm(-abs(2.58)))
+
+## store our assumption values
+pop.mean <- 2*sqrt(2)
+pop.sig.squared <- 4
+pop.sd <- sqrt(pop.sig.squared)
+
+##
+# n <- 50
+# a <- qnorm(.995)
+# b.lower <- mu-1-a*sig/sqrt(n)
+# b.upper <- mu-1+a*sig/sqrt(n)
+# (pnorm(b.upper, mu, sig/sqrt(n), lower.tail = FALSE) + pnorm(b.lower, mu, sig/sqrt(n)))
+
+
+## sample
+set.seed(541125)
+obs.mean <- mean(rnorm(n= 50, mean= pop.mean-1, sd= pop.sd))
+
+## calculate the z-stat
+(z.stat <- (obs.mean - pop.mean)/(pop.sd/sqrt(50)))
+
+## a z.stat of ~2.58 would result in a 2-sided p-value .01
+       
+## compute the 2-sided p-value; the probability of getting a z-value as extreme or more extreme
+(p <- 2*pnorm(-abs(z.stat)))
+```
+
+### 2.b
+
+```{r}
+shp <- 2
+scl <- sqrt(4/shp)
+sig <- sqrt(shp*scl^2) # sigma in 2a
+mu <- shp*scl # 2*sqrt(2), mu in 2a
+
+pct <- .01 ## the lower-limit p-value we are testing
+a <- qnorm(1-(pct)/2) ## the z-score needed at the given percent (pct)
+n <- 50
+
+b.lower <- mu-1-a*sig/sqrt(n)
+b.upper <- mu-1+a*sig/sqrt(n)
+(pnorm(b.upper, mu, sig/sqrt(n), lower.tail = FALSE) + pnorm(b.lower, mu, sig/sqrt(n)))
+
+## define the population test statistics
+pop.mean = 2*sqrt(2)-1
+pop.sig.squared = 4
+pop.sd = sqrt(pop.sig.squared)
+
+## function to sample 50 draws from the gamma distribution with given parameters
+## mean = population mean, sd = population stand. dev.
+## n, shp, and scale are the params needed for gamma
+sim <- function(mean, sd, n, shp, scl){
+    ## draw n samples from Gamma with given shape and scale
+    samp.this <- rgamma(n= n, shape= shp, scale= scl)
+    ## convert observed sample mean
+    samp.mean <- mean(samp.this)
+    ## convert observed mean to z-score; se = sd of the sampling distribution
+    ## of means
+    se.this <- sd/sqrt(n)
+    ## calc z-stat
+    z.stat.this <- (samp.mean - mean)/se.this
+  return (z.stat.this)
+}
+
+## calculate the means for each
+vals <- replicate(n= 100000, sim(pop.mean, pop.sd, 50, shp, scl))
+```
+
+Suppose an iid sample of size 50 is drawn from population with a $Gamma(shape=2,scale=\sqrt{2})$ distribution. Note that the mean of this distribution is $2\sqrt{2}$ and the variance is $4$, as in the Normal population above. Let the null hypothesis be that the sample is drawn from a $Normal(\mu=2\sqrt{2}-1,\sigma^2=4)$ population. Please use 100,000 samples to estimate the probability that a two-sided z-test of performed on the sample will have a p-value that is less than or equal to 0.01. 
+
+$\\[.5em]\color{blue}\textbf{Question 2B Solution}\\[.5em]$
+
+```{r}
+
+dat.plot <- data.frame(x= c(0, 3*mu))
+ggplot(data= dat.plot, aes(x= x))+
+  stat_function(fun= dgamma, args= list(shape= shp,scale= scl))
+
+ggqqplot(rgamma(50, shp, scl))
+
+```
+
+### 2.c
+
+Suppose an iid sample of size 50 is drawn from population with a $Normal(\mu=2\sqrt{2},\sigma^2=4)$ distribution but that the values are rounded to the nearest 0.1 (see the "round" function). Let the null hypothesis be that the sample is drawn from a $Normal(\mu=2\sqrt{2}-1,\sigma^2=4)$ population. Please use 100,000 samples to estimate the probability that a two-sided z-test of performed on the sample will have a p-value that is less than or equal to 0.01.
+
+```{r}
+n<-50
+set.seed(1234567)
+ggqqplot(round(rnorm(n,mu,sig)))
+
+```
+
+### 2.d 
+
+Suppose an iid sample of size 50 is drawn from population with a $Gamma(shape=2,scale=\sqrt{2})$ distribution. Note that the mean of this distribution is $2\sqrt{2}$ and the variance is $4$, as in the Normal population above. Let the null hypothesis be that the sample is drawn from a $Normal(\mu=2\sqrt{2},\sigma^2=4)$ population. Please use 100,000 samples to estimate the probability that a two-sided z-test performed on the sample will have a p-value that is less than or equal to 0.01?
+
+```{r}
+
+```
+
+### 2.e 
+
+Suppose an iid sample of size 50 is drawn from population with a $Normal(\mu=2\sqrt{2},\sigma^2=4)$ distribution but that the values are rounded to the nearest 0.1 (see the "round" function). Let the null hypothesis be that the sample is drawn from a $Normal(\mu=2\sqrt{2},\sigma^2=4)$ population. Please use 100,000 samples to estimate the probability that a two-sided z-test performed on the sample will have a p-value that is less than or equal to 0.01? (Note that this probability is, by definition, 0.01 if the values weren't rounded.)
+
+```{r}
+
+```
+
+## 2.f
+
+### Nonnormality
+
+Does the correctness of the p-value and the power of the test seem to be strongly affected by the change from the $Normal(\mu=2\sqrt{2},\sigma^2=4)$ population to the $Gamma(shape=2,scale=\sqrt{2})$ population? 
+
+### Rounding
+
+Does the correctness of the p-value and the power of the test seem to be strongly affected by the change from the $Normal(\mu=2\sqrt{2},\sigma^2=4)$ population to the rounded $Normal(\mu=2\sqrt{2},\sigma^2=4)$ values? 
+
+
+
+
